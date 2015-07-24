@@ -4,28 +4,17 @@ import java.util.*;
 
 class scrabble_word_gen {
 	static int NUMBER_OF_TILES = 7;
+	static int TOP_N = 5;
 	static List<String> all_characters = new ArrayList<String>();
 	static List<String> possible_characters = new ArrayList<String>(); 
 	
 	public static void main(String[] args) {
 		try {
-			Random randomizer = new Random();
-			for (int i = 0; i < 26; i++) {
-				all_characters.add("" + (char)(i + 'A'));
-			}
-			all_characters.add(" ");
-			for (int i = 0; i < NUMBER_OF_TILES; i++) {
-				possible_characters.add(all_characters.get(randomizer.nextInt(27)));
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-		try {
-			Word_generator word_generator = new Word_generator(args[0], args[1]);			
+			Word_generator word_generator = new Word_generator(args[1], args[2]);			
 			SortedMap<Integer, String> possible_words = new TreeMap<Integer, String>(Collections.reverseOrder());
-			possible_words = word_generator.get_words(possible_characters, possible_characters.size());
-			for (Integer score : possible_words.keySet()) {
-				System.out.println(score + ": " +possible_words.get(score));
+			possible_words = word_generator.get_words(args[0], args[0].length());
+			for (int score : possible_words.keySet()) {
+				System.out.println(score + " " +possible_words.get(score));
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -36,6 +25,7 @@ class scrabble_word_gen {
 class Word_generator {
 	private String each_character_score_file_path; 
 	private String dictionary_path;
+	private static String SEPARATOR = " ";
 	
 	
 	Word_generator(String score_file_path, String scrabble_dictionary_path) {
@@ -43,11 +33,14 @@ class Word_generator {
 		this.dictionary_path = scrabble_dictionary_path; 
 	}
 	
-	SortedMap<Integer, String> get_words(List<String> input_characters, int required_word_size) throws Exception {
+	SortedMap<Integer, String> get_words(String input_string, int required_word_size) throws Exception {
 		Scrabble scrabble_dictionary_checker = new Scrabble();
-		scrabble_dictionary_checker.generate_anagrams(dictionary_path);
-		Score_sort score_generator = new Score_sort(each_character_score_file_path);
-		SortedMap<Integer, String> words_score_map = new TreeMap<Integer, String>(Collections.reverseOrder());
+		scrabble_dictionary_checker.generate_anagrams(dictionary_path, each_character_score_file_path);
+		SortedMap<Integer, String> words_and_score = new TreeMap<Integer, String>(Collections.reverseOrder());
+		List<String> input_characters = new ArrayList<String>();
+		for (char character : input_string.toCharArray()){
+			input_characters.add("" + character);
+		}
 		boolean blank_tile_absent = true;
 		if (input_characters.contains(" ")) {
 			input_characters.remove(" ");
@@ -57,18 +50,26 @@ class Word_generator {
 		for (String word_permutation : permutation_set) {
 			if (blank_tile_absent) {
 				if (scrabble_dictionary_checker.is_valid(word_permutation) && word_permutation.length() <= required_word_size) {
-					words_score_map.put(score_generator.calculate_score(word_permutation), scrabble_dictionary_checker.get_anagrams(word_permutation));
+					String[] score_with_word = scrabble_dictionary_checker.get_anagrams(word_permutation).split(" : ");
+					int score = Integer.parseInt(score_with_word[0]);
+					if (!words_and_score.containsKey(score)) {
+						words_and_score.put(score, score_with_word[1]);
+					} else {
+						String words_in_map = words_and_score.get(score);
+						words_and_score.put(score, words_in_map + SEPARATOR + score_with_word[1]);
+					}
 				}
 			} else {
 				Set<String> words_without_blank = fill_blank(word_permutation);
 				for (String word_with_blank_filled : words_without_blank) {
 					if (scrabble_dictionary_checker.is_valid(word_with_blank_filled) && word_with_blank_filled.length() <= required_word_size) {
-						words_score_map.put(score_generator.calculate_score(word_permutation), scrabble_dictionary_checker.get_anagrams(word_with_blank_filled));
+						String[] score_with_word = scrabble_dictionary_checker.get_anagrams(word_with_blank_filled).split(" : ");
+						words_and_score.put(Integer.parseInt(score_with_word[0]), score_with_word[1]);
 					}
 				}
 			}
 		}
-		return words_score_map;
+		return words_and_score;
 	}
 	
 	Set<String> generate_permutations(List<String> players_characters) {
@@ -113,15 +114,18 @@ class Scrabble {
 		return String.valueOf(arr);
 	}
 
-	public void generate_anagrams(String filePath) throws Exception {
-		BufferedReader word_reader = new BufferedReader(new FileReader(filePath));
+	public void generate_anagrams(String dictionary_file_path, String alphabets_score_file_path) throws Exception {
+		BufferedReader word_reader = new BufferedReader(new FileReader(dictionary_file_path));
 		String sCurrentLine = "";
 		this.words_map = new HashMap<String, String>();
+		Score_sort score_generator = new Score_sort(alphabets_score_file_path);
 		while ((sCurrentLine = word_reader.readLine()) != null) {
 			String sorted_word = sortWord(sCurrentLine);
-			String words = sCurrentLine;
+			String words = "";
 			if (this.words_map.containsKey(sorted_word)) {
 				words = this.words_map.get(sorted_word) + SEPARATOR + words;
+			} else {
+				words = score_generator.calculate_score(sorted_word)+ " : " +sCurrentLine;
 			}
 			this.words_map.put(sorted_word, words);
 		}
@@ -154,18 +158,6 @@ class Score_sort {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-	}
-	
-	SortedMap<Integer, String> sort_by_score_desc(List<String> unsorted_list) {
-		SortedMap<Integer, String> words_and_score_map = new TreeMap<Integer, String>(Collections.reverseOrder());
-		for (String word : unsorted_list) {
-			int word_score = calculate_score(word);
-			if (words_and_score_map.containsKey(word_score)) {
-				word = words_and_score_map.get(word_score) + SEPARATOR + word;
-			}
-			words_and_score_map.put(word_score, word);
-		}
-		return words_and_score_map;
 	}
 	
 	int calculate_score(String word) {
