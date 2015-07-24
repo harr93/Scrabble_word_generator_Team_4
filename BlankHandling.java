@@ -1,32 +1,40 @@
-package first;
+import java.util.*;
+import java.lang.*;
+import java.io.*;
 
 import java.util.List;
 import java.util.ArrayList;
 
-public class BlankHandling {
+class BlankHandling {
 
-	public static List<String> addBlank(String word){
+public static List<String> addBlank(List<String> formedWordsList, String word, int spaceCount){
 		
-		List<String> wordsFormed = new ArrayList<String>();
-		
-		int index = 0;
-		for(char i= 'a'; i <= 'z'; i++){
-			if(index < word.length()){
-				if(word.charAt(index) <= i){
-					index++;
-				}
-			}
-			String toAdd = word.substring(0, index) + i + word.substring(index, word.length());
-			//System.out.println("toPut: " + toPut);
-			wordsFormed.add(toAdd);
+		if(spaceCount== 0){
+			formedWordsList.add(word);
 		}
-		return wordsFormed;
+		else
+		{
+			int index = 0;
+			for(char i= 'a'; i <= 'z'; i++){
+				if(index < word.length()){
+					if(word.charAt(index) <= i){
+						index++;
+					}
+				}
+				String toAdd = word.substring(0, index) + i + word.substring(index, word.length());
+				formedWordsList = addBlank(formedWordsList, toAdd, spaceCount-1);
+			}
+		}
+		
+		return formedWordsList;
 	}
 	
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
-		String word = "adgmvz";
-		List<String> formedWordsList = addBlank(word);
+		String word = "cnt";
+		
+		List<String> formedWordsList = new ArrayList<String>();
+		formedWordsList = addBlank(formedWordsList, word, 2);
+		
 		System.out.println(formedWordsList);
 	}
 
